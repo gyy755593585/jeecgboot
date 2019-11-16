@@ -22,11 +22,11 @@ import org.jeecgframework.web.cgform.entity.config.CgFormFieldEntity;
 import org.jeecgframework.web.cgform.entity.config.CgFormHeadEntity;
 import org.jeecgframework.web.cgform.exception.DBException;
 import org.jeecgframework.web.cgform.service.config.DbTableHandleI;
-import org.springframework.orm.hibernate5.SessionFactoryUtils;
 
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import org.springframework.orm.hibernate5.SessionFactoryUtils;
 
 /**
  * 通过hibernate和脚本来处理来同步数据库
@@ -35,12 +35,12 @@ import freemarker.template.TemplateException;
 public class DbTableProcess {
 	private static final Logger logger = Logger.getLogger(DbTableProcess.class);
 	private static  DbTableHandleI dbTableHandle;
-	
-	
+
+
 	public DbTableProcess(Session session) {
 		dbTableHandle = DbTableUtil.getTableHandle(session);
 	}
-	
+
 	public static void createOrDropTable(CgFormHeadEntity table, Session session) throws IOException, TemplateException, HibernateException, SQLException, DBException  {
 		Template t;
 		t = getConfig("/org/jeecgframework/web/cgform/engine/hibernate").getTemplate("tableTemplate.ftl");
@@ -52,8 +52,8 @@ public class DbTableProcess {
 		logger.info(xml);
 		createTable(xml, table, session);
 	}
-	
-	
+
+
 	@SuppressWarnings("all")
 	private static Object getRootMap(CgFormHeadEntity table,String dataType) {
 		Map map = new HashMap();
@@ -65,25 +65,25 @@ public class DbTableProcess {
 		return map;
 	}
 
-	 
-	
+
+
 	public  List<String> updateTable(CgFormHeadEntity table,Session session) throws DBException{
 		//StringBuilder sb = new StringBuilder();
 		String dataType = DbTableUtil.getDataType(session);
 		String tableName = dataType.equals("ORACLE")?table.getTableName().toUpperCase():table.getTableName();
 		String alterTable="alter table  "+tableName+" ";
 		List<String> strings = new ArrayList<String>();
-	       //对表的修改列和删除列的处理，解决hibernate没有该机制
-	       try {
-			 Map<String, ColumnMeta> dataBaseColumnMetaMap = getColumnMetadataFormDataBase(null ,tableName,session);
-			 Map<String, ColumnMeta> cgFormColumnMetaMap = getColumnMetadataFormCgForm(table);
-			 Map<String,String> newAndOldFieldMap =getNewAndOldFieldName(table);
-			
-			 
-			 for (String columnName : cgFormColumnMetaMap.keySet()) {
-				 if(!dataBaseColumnMetaMap.containsKey(columnName)){//表如果不存在该列，则要对表做修改、增加、删除该列动作 此处无法处理删除的列，因为在这个循环中无法获得该列
+		//对表的修改列和删除列的处理，解决hibernate没有该机制
+		try {
+			Map<String, ColumnMeta> dataBaseColumnMetaMap = getColumnMetadataFormDataBase(null ,tableName,session);
+			Map<String, ColumnMeta> cgFormColumnMetaMap = getColumnMetadataFormCgForm(table);
+			Map<String,String> newAndOldFieldMap =getNewAndOldFieldName(table);
+
+
+			for (String columnName : cgFormColumnMetaMap.keySet()) {
+				if(!dataBaseColumnMetaMap.containsKey(columnName)){//表如果不存在该列，则要对表做修改、增加、删除该列动作 此处无法处理删除的列，因为在这个循环中无法获得该列
 					//如果旧列中包含这个列名，说明是修改名称的
-					 ColumnMeta cgFormColumnMeta = cgFormColumnMetaMap.get(columnName);
+					ColumnMeta cgFormColumnMeta = cgFormColumnMetaMap.get(columnName);
 					if(newAndOldFieldMap.containsKey(columnName)&&(dataBaseColumnMetaMap.containsKey(newAndOldFieldMap.get(columnName)))){
 						ColumnMeta dataColumnMeta = dataBaseColumnMetaMap.get(newAndOldFieldMap.get(columnName));
 						if ("SQLSERVER".equals(dataType)) {
@@ -91,15 +91,15 @@ public class DbTableProcess {
 							strings.add(getReNameFieldName(cgFormColumnMeta));
 						}else {
 							strings.add(alterTable+getReNameFieldName(cgFormColumnMeta));
-						} 
+						}
 						//执行完成之后修改成一致 fildname和oldfieldname
-						 updateFieldName(columnName, cgFormColumnMeta.getColumnId(),session);
+						updateFieldName(columnName, cgFormColumnMeta.getColumnId(),session);
 						//修改表名之后继续判断值有没有变化,有变化继续修改值
 						if (!dataColumnMeta.equals(cgFormColumnMeta)) {
-								strings.add(alterTable+getUpdateColumnSql(cgFormColumnMeta,dataColumnMeta));
-								if (DbTableUtil.getDataType(session).equals("POSTGRESQL")) {
-									strings.add(alterTable + getUpdateSpecialSql(cgFormColumnMeta, dataColumnMeta));
-								}
+							strings.add(alterTable+getUpdateColumnSql(cgFormColumnMeta,dataColumnMeta));
+							if (DbTableUtil.getDataType(session).equals("POSTGRESQL")) {
+								strings.add(alterTable + getUpdateSpecialSql(cgFormColumnMeta, dataColumnMeta));
+							}
 						}
 						//判断注释是不是相同,修改注释
 
@@ -127,46 +127,46 @@ public class DbTableProcess {
 					}
 
 				}
-				
+
 			}
-			 
+
 			//删除数据库的列
-			 //要判断这个列不是修改的
-			 for (String columnName : dataBaseColumnMetaMap.keySet()) {
+			//要判断这个列不是修改的
+			for (String columnName : dataBaseColumnMetaMap.keySet()) {
 				if ((!cgFormColumnMetaMap.containsKey(columnName.toLowerCase()))&& (!newAndOldFieldMap.containsValue(columnName.toLowerCase()))) {
 					strings.add(alterTable+getDropColumnSql(columnName));
 				}
 			}
-			 
+
 		} catch (SQLException e1) {
 			throw new RuntimeException();
 		}
 		logger.info(strings.toString());
 		return strings;
 	}
-	
+
 	private static void createTable(String xml, CgFormHeadEntity table,Session session) throws HibernateException, SQLException, DBException {
-				
+
 		//FIXME 考虑JNDI的情况
 		//重新构建一个Configuration
-		org.hibernate.cfg.Configuration newconf = new org.hibernate.cfg.Configuration(); 
+		org.hibernate.cfg.Configuration newconf = new org.hibernate.cfg.Configuration();
 		newconf.addXML(xml).setProperty("hibernate.dialect",((SessionImpl)session).getFactory().getDialect().getClass().getName());
 //       .setProperty("hibernate.connection.username",propertiesUtil.readProperty("jdbc.username.jeecg"))
-//       .setProperty("hibernate.connection.password",propertiesUtil.readProperty("jdbc.password.jeecg"))  
+//       .setProperty("hibernate.connection.password",propertiesUtil.readProperty("jdbc.password.jeecg"))
 //       .setProperty("hibernate.dialect",propertiesUtil.readProperty("hibernate.dialect"))
 //       .setProperty("hibernate.connection.url",propertiesUtil.readProperty("jdbc.url.jeecg"))
-//       .setProperty("hibernate.connection.driver_class",propertiesUtil.readProperty("jdbc.driver.class")); 
-//       
-			SchemaExport dbExport;
-			dbExport = new SchemaExport();
-			//dbExport.execute(true, true, false, true);
+//       .setProperty("hibernate.connection.driver_class",propertiesUtil.readProperty("jdbc.driver.class"));
+//
+		SchemaExport dbExport;
+//		dbExport = new SchemaExport(newconf,SessionFactoryUtils.getDataSource(session.getSessionFactory()).getConnection());
+//		dbExport.execute(true, true, false, true);
 
-			//抛出执行异常，抛出第一个即可  
-			@SuppressWarnings("unchecked")
-			List<Exception> exceptionList = dbExport.getExceptions();
-			for (Exception exception : exceptionList) {
-				throw new DBException(exception.getMessage());
-			}
+		//抛出执行异常，抛出第一个即可
+//		@SuppressWarnings("unchecked")
+//		List<Exception> exceptionList = dbExport.getExceptions();
+//		for (Exception exception : exceptionList) {
+//			throw new DBException(exception.getMessage());
+//		}
 
 	}
 
@@ -183,7 +183,7 @@ public class DbTableProcess {
 		return cfg;
 	}
 
-	
+
 	/**
 	 * 获取数据库中列的描述
 	 * @param tableName
@@ -200,9 +200,9 @@ public class DbTableProcess {
 			logger.error(e);
 			e.printStackTrace();
 		}
-		
+
 		DatabaseMetaData dbMetaData = conn.getMetaData();
-		ResultSet rs = dbMetaData.getColumns(null, schemaName, tableName, "%");	
+		ResultSet rs = dbMetaData.getColumns(null, schemaName, tableName, "%");
 		ColumnMeta columnMeta;
 		Map<String, ColumnMeta> columnMap = new HashMap<String, ColumnMeta>();
 		while (rs.next()){
@@ -240,7 +240,7 @@ public class DbTableProcess {
 					+" DECIMAL_DIGITS:"+rs.getInt("DECIMAL_DIGITS")+" COLUMN_SIZE:"+rs.getInt("COLUMN_SIZE"));
 			columnMap.put(rs.getString("COLUMN_NAME").toLowerCase(), columnMeta);*/
 		}
-		
+
 		return columnMap;
 	}
 
@@ -269,11 +269,11 @@ public class DbTableProcess {
 			logger.info("getColumnMetadataFormCgForm ---->COLUMN_NAME:"+cgFormFieldEntity.getFieldName().toLowerCase()+" TYPE_NAME:"+cgFormFieldEntity.getType().toLowerCase()
 					+" DECIMAL_DIGITS:"+cgFormFieldEntity.getPointLength()+" COLUMN_SIZE:"+cgFormFieldEntity.getLength());
 			map.put(cgFormFieldEntity.getFieldName().toLowerCase(), columnMeta);
-			
+
 		}
 		return map;
 	}
-	
+
 	/**
 	 * 返回cgForm中列名的新和旧的对应关系
 	 * @param table
@@ -287,7 +287,7 @@ public class DbTableProcess {
 		}
 		return map;
 	}
-	
+
 	/**
 	 * 创建删除字段的sql
 	 * @param fieldName
@@ -297,11 +297,11 @@ public class DbTableProcess {
 		//ALTER TABLE `test` DROP COLUMN `aaaa`;
 		return dbTableHandle.getDropColumnSql(fieldName);
 	}
-	
+
 	/**
 	 * 创建更新字段的sql
 	 * @param newColumn
-	 * @param agoColumn 
+	 * @param agoColumn
 	 * @return
 	 */
 	private static String getUpdateColumnSql(ColumnMeta cgformcolumnMeta,ColumnMeta datacolumnMeta)throws DBException {
@@ -309,7 +309,7 @@ public class DbTableProcess {
 		//return " MODIFY COLUMN  "+getFieldDesc(columnMeta)+",";
 		return dbTableHandle.getUpdateColumnSql(cgformcolumnMeta,datacolumnMeta);
 	}
-	
+
 	/**
 	 * 处理特殊sql
 	 * @param cgformcolumnMeta
@@ -319,7 +319,7 @@ public class DbTableProcess {
 	private static String getUpdateSpecialSql(ColumnMeta cgformcolumnMeta,ColumnMeta datacolumnMeta) {
 		return dbTableHandle.getSpecialHandle(cgformcolumnMeta,datacolumnMeta);
 	}
-	
+
 	/**
 	 * 修改列名
 	 * @param columnMeta
@@ -330,18 +330,18 @@ public class DbTableProcess {
 		//return "CHANGE COLUMN  "+columnMeta.getOldColumnName() +" "+getFieldDesc(columnMeta)+",";
 		return dbTableHandle.getReNameFieldName(columnMeta);
 	}
-	
+
 	/**
 	 * 创建增加字段的sql
 	 * @param column
-	 * @param agoColumn 
+	 * @param agoColumn
 	 * @return
 	 */
 	private static String getAddColumnSql(ColumnMeta columnMeta) {
 		//return " ADD COLUMN "+getFieldDesc(columnMeta)+",";
 		return dbTableHandle.getAddColumnSql(columnMeta);
 	}
-	
+
 	/**
 	 * 添加注释的sql
 	 *@Author JueYue
@@ -352,7 +352,7 @@ public class DbTableProcess {
 	private String getCommentSql(ColumnMeta columnMeta) {
 		return dbTableHandle.getCommentSql(columnMeta);
 	}
-	
+
 	private int updateFieldName(String columnName,String id,Session session){
 		return   session.createSQLQuery("update cgform_field set old_field_name= '"+columnName+"' where id='"+id+"'").executeUpdate();
 	}

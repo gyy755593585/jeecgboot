@@ -1,4 +1,7 @@
 package org.jeecgframework.config;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson.support.config.FastJsonConfig;
+import com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter;
 import org.jeecgframework.core.common.hibernate.dialect.DialectFactoryBean;
 import org.jeecgframework.core.interceptors.MyWebBinding;
 import org.jeecgframework.web.system.listener.InitListener;
@@ -26,29 +29,44 @@ import org.springframework.web.servlet.view.InternalResourceViewResolver;
 import org.springframework.web.servlet.view.JstlView;
 
 import javax.servlet.Servlet;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 @EnableWebMvc
-//@ImportResource(locations = {"spring-mvc.xml", "spring-mvc-timeTask.xml", "spring-mvc-aop.xml", "spring-mvc-context.xml"})
 public class MVCConfig implements WebMvcConfigurer {
 
     @Bean
     public CacheServiceI cacheServiceI(){
         return new EhcacheService();
     }
-/*<!-- 避免IE执行AJAX时,返回JSON出现下载文件 -->*/
+    /*<!-- 避免IE执行AJAX时,返回JSON出现下载文件 -->*/
+//    @Bean
+//    public MappingJackson2HttpMessageConverter mappingJacksonHttpMessageConverter(){
+//        MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter = new MappingJackson2HttpMessageConverter();
+//        List<MediaType> supportedMedias = new ArrayList<>();
+//        supportedMedias.add(MediaType.valueOf("text/html;charset=UTF-8"));
+//        supportedMedias.add(MediaType.valueOf("text/json;charset=UTF-8"));
+//        supportedMedias.add(MediaType.valueOf("application/json;charset=UTF-8"));
+//        mappingJackson2HttpMessageConverter.setSupportedMediaTypes(supportedMedias);
+//        return  mappingJackson2HttpMessageConverter;
+//    }
     @Bean
-    public MappingJackson2HttpMessageConverter mappingJacksonHttpMessageConverter(){
-        MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter = new MappingJackson2HttpMessageConverter();
+    public FastJsonHttpMessageConverter fastJsonHttpMessageConverter(){
+        FastJsonHttpMessageConverter fastJsonHttpMessageConverter = new FastJsonHttpMessageConverter();
+        FastJsonConfig fastJsonConfig = new FastJsonConfig();
+        fastJsonConfig.setCharset(Charset.forName("UTF-8"));
+        fastJsonConfig.setSerializerFeatures(SerializerFeature.DisableCircularReferenceDetect,SerializerFeature.WriteMapNullValue,SerializerFeature.WriteNullBooleanAsFalse,SerializerFeature.WriteNullStringAsEmpty);
+        fastJsonConfig.setDateFormat("yyyyMMdd HH:mm:ss");
         List<MediaType> supportedMedias = new ArrayList<>();
         supportedMedias.add(MediaType.valueOf("text/html;charset=UTF-8"));
         supportedMedias.add(MediaType.valueOf("text/json;charset=UTF-8"));
         supportedMedias.add(MediaType.valueOf("application/json;charset=UTF-8"));
-        mappingJackson2HttpMessageConverter.setSupportedMediaTypes(supportedMedias);
-        return  mappingJackson2HttpMessageConverter;
+        fastJsonHttpMessageConverter.setSupportedMediaTypes(supportedMedias);
+        fastJsonHttpMessageConverter.setFastJsonConfig(fastJsonConfig);
+        return  fastJsonHttpMessageConverter;
     }
     @Bean
     public StringHttpMessageConverter stringHttpMessageConverter(){
@@ -59,17 +77,17 @@ public class MVCConfig implements WebMvcConfigurer {
         return  stringHttpMessageConverter;
     }
 
-   @Bean
-   public RequestMappingHandlerAdapter requestMappingHandlerAdapter(){
-       RequestMappingHandlerAdapter requestMappingHandlerAdapter = new RequestMappingHandlerAdapter();
-       requestMappingHandlerAdapter.setCacheSeconds(0);
-       List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
-       messageConverters.add(stringHttpMessageConverter());
-       messageConverters.add(mappingJacksonHttpMessageConverter());
-       requestMappingHandlerAdapter.setMessageConverters(messageConverters);
-       requestMappingHandlerAdapter.setWebBindingInitializer(new MyWebBinding());
-       return requestMappingHandlerAdapter;
-   }
+    @Bean
+    public RequestMappingHandlerAdapter requestMappingHandlerAdapter(){
+        RequestMappingHandlerAdapter requestMappingHandlerAdapter = new RequestMappingHandlerAdapter();
+        requestMappingHandlerAdapter.setCacheSeconds(0);
+        List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
+        messageConverters.add(stringHttpMessageConverter());
+        messageConverters.add(fastJsonHttpMessageConverter());
+        requestMappingHandlerAdapter.setMessageConverters(messageConverters);
+        requestMappingHandlerAdapter.setWebBindingInitializer(new MyWebBinding());
+        return requestMappingHandlerAdapter;
+    }
 
     @Bean
     @Order(3)
@@ -96,7 +114,7 @@ public class MVCConfig implements WebMvcConfigurer {
     }
 
     @Bean
-   public DialectFactoryBean dialect(){
+    public DialectFactoryBean dialect(){
         DialectFactoryBean dialectFactoryBean = new DialectFactoryBean();
         dialectFactoryBean.setDbType("mysql");
         return dialectFactoryBean;

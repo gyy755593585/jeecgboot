@@ -12,6 +12,7 @@ import javax.persistence.Table;
 import javax.persistence.Transient;
 
 
+import com.alibaba.fastjson.annotation.JSONField;
 import org.apache.commons.lang.StringUtils;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
@@ -78,10 +79,12 @@ public class CgFormHeadEntity implements java.io.Serializable {
 	/**
 	 * 表格列属性
 	 */
+	@JSONField(serialize=false)
 	private List<CgFormFieldEntity> columns;
 	/**
 	 * 索引
 	 */
+	@JSONField(serialize=false)
 	private List<CgFormIndexEntity> indexes;
 	
 	/**树形列表 父id列名*/
