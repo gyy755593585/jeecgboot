@@ -71,7 +71,7 @@ public class DbTableUtil {
 	public static DbTableHandleI getTableHandle(Session  session) {
 		DbTableHandleI dbTableHandle = null;
 		String dialect = ((SessionImpl)session).getFactory().getDialect().getClass().getName();
-		if (dialect.equals("org.hibernate.dialect.MySQLDialect")) {
+		if (dialect.contains("MySQL")) {
 			dbTableHandle = new DbTableMysqlHandleImpl();
 		}else if (dialect.contains("Oracle")) {
 			dbTableHandle = new DbTableOracleHandleImpl();

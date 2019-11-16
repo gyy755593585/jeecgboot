@@ -1,5 +1,6 @@
 package org.jeecgframework.web.cgform.service.impl.config.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -7,17 +8,23 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
+import org.hibernate.boot.Metadata;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.jaxb.spi.Binding;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.internal.SessionImpl;
+import org.hibernate.service.ServiceRegistry;
 import org.hibernate.tool.hbm2ddl.SchemaExport;
+import org.hibernate.tool.schema.TargetType;
+import org.jeecgframework.core.util.PropertiesUtil;
+import org.jeecgframework.core.util.StreamUtils;
 import org.jeecgframework.web.cgform.entity.config.CgFormFieldEntity;
 import org.jeecgframework.web.cgform.entity.config.CgFormHeadEntity;
 import org.jeecgframework.web.cgform.exception.DBException;
@@ -147,26 +154,35 @@ public class DbTableProcess {
 
 	private static void createTable(String xml, CgFormHeadEntity table,Session session) throws HibernateException, SQLException, DBException {
 
-		//FIXME 考虑JNDI的情况
-		//重新构建一个Configuration
-		org.hibernate.cfg.Configuration newconf = new org.hibernate.cfg.Configuration();
-		newconf.addXML(xml).setProperty("hibernate.dialect",((SessionImpl)session).getFactory().getDialect().getClass().getName());
-//       .setProperty("hibernate.connection.username",propertiesUtil.readProperty("jdbc.username.jeecg"))
-//       .setProperty("hibernate.connection.password",propertiesUtil.readProperty("jdbc.password.jeecg"))
-//       .setProperty("hibernate.dialect",propertiesUtil.readProperty("hibernate.dialect"))
-//       .setProperty("hibernate.connection.url",propertiesUtil.readProperty("jdbc.url.jeecg"))
-//       .setProperty("hibernate.connection.driver_class",propertiesUtil.readProperty("jdbc.driver.class"));
-//
-		SchemaExport dbExport;
-//		dbExport = new SchemaExport(newconf,SessionFactoryUtils.getDataSource(session.getSessionFactory()).getConnection());
-//		dbExport.execute(true, true, false, true);
+		PropertiesUtil propertiesUtil = new PropertiesUtil("dbconfig.properties");
+		Properties dbProperties = propertiesUtil.getProperties();
+		Map<String, Object> properties = new HashMap<>();
+		properties.put("hibernate.connection.driver_class", dbProperties.getProperty("jdbc.driver"));
+		properties.put("hibernate.connection.url", dbProperties.getProperty("jdbc.driver"));
+		properties.put("hibernate.connection.username",dbProperties.getProperty("jdbc.username"));
+		properties.put("hibernate.connection.password", dbProperties.getProperty("jdbc.password"));
+		properties.put("hibernate.show_sql", true);
+		properties.put("hibernate.format_sql", true);
+		properties.put("hibernate.temp.use_jdbc_metadata_defaults", false);
+		properties.put("hibernate.dialect", ((SessionImpl)session).getFactory().getDialect().getClass().getName());
+		properties.put("hibernate.hbm2ddl.auto", "create");
+		properties.put("hibernate.connection.autocommit", false);
+		properties.put("hibernate.current_session_context_class", "thread");
+		logger.info(properties.toString());
+		SchemaExport dbExport = new SchemaExport();
+		ServiceRegistry standardRegistry =
+				new StandardServiceRegistryBuilder().applySettings(properties).build();
 
+		MetadataSources sources = new MetadataSources( standardRegistry );
+		sources.addInputStream(new ByteArrayInputStream(xml.getBytes()));
+		Metadata metadata = sources.buildMetadata();
+		dbExport.create(EnumSet.of(TargetType.DATABASE),metadata);
 		//抛出执行异常，抛出第一个即可
-//		@SuppressWarnings("unchecked")
-//		List<Exception> exceptionList = dbExport.getExceptions();
-//		for (Exception exception : exceptionList) {
-//			throw new DBException(exception.getMessage());
-//		}
+		@SuppressWarnings("unchecked")
+		List<Exception> exceptionList = dbExport.getExceptions();
+		for (Exception exception : exceptionList) {
+			throw new DBException(exception.getMessage());
+		}
 
 	}
 

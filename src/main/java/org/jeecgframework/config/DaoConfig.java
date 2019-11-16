@@ -1,12 +1,14 @@
 package org.jeecgframework.config;
 
 import com.alibaba.druid.pool.DruidDataSource;
+import com.google.common.collect.Lists;
 import org.hibernate.SessionFactory;
 import org.jeecgframework.core.aop.HiberAspect;
 import org.jeecgframework.core.extend.datasource.DataSourceType;
 import org.jeecgframework.core.extend.datasource.DynamicDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.orm.hibernate5.support.OpenSessionInViewFilter;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
@@ -30,11 +33,11 @@ import java.util.Properties;
 public class DaoConfig {
     @Value("${jdbc.driver}")
     private String driverClassName;
-    @Value("${jdbc.url.jeecg}")
+    @Value("${jdbc.url}")
     private String jdbcUrl;
-    @Value("${jdbc.username.jeecg}")
+    @Value("${jdbc.username}")
     private String username;
-    @Value("${jdbc.password.jeecg}")
+    @Value("${jdbc.password}")
     private String password;
     @Value("${hibernate.hbm2ddl.auto}")
     private String hibernate_hbm2ddl_auto;
@@ -113,5 +116,12 @@ public class DaoConfig {
     public Validator validator(){
         LocalValidatorFactoryBean localValidatorFactoryBean = new LocalValidatorFactoryBean();
         return localValidatorFactoryBean;
+    }
+    @Bean
+    public FilterRegistrationBean openSessionInView(){
+        FilterRegistrationBean<OpenSessionInViewFilter> openSessionInView = new FilterRegistrationBean<>();
+        openSessionInView.setFilter(new OpenSessionInViewFilter());
+        openSessionInView.setUrlPatterns(Lists.newArrayList("/*"));
+        return openSessionInView;
     }
 }
